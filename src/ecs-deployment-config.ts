@@ -55,7 +55,7 @@ export class EcsDeploymentConfig extends Resource implements IEcsDeploymentConfi
   constructor(scope: Construct, id: string, props: EcsDeploymentConfigurationProps) {
     super(scope, id);
 
-    const cfnDeploymentConfig = new CfnDeploymentConfig(this, 'EcsDeploymentConfiguration', {
+    const cfnDeploymentConfig = new CfnDeploymentConfig(this, `${id}-EcsDeploymentConf`, {
       computePlatform: 'ECS',
       ...props,
     });
