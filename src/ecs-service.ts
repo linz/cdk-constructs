@@ -73,7 +73,7 @@ export class EcsService extends Construct implements IConnectable, IEcsService {
       desiredCount = 1,
       prodTargetGroup,
       taskDefinition,
-      healthCheckGracePeriod = Duration.seconds(60),
+      healthCheckGracePeriod,
     } = props;
 
     const containerPort = props.containerPort ?? taskDefinition.containerPort;
@@ -120,7 +120,7 @@ export class EcsService extends Construct implements IConnectable, IEcsService {
         TargetGroupArn: prodTargetGroup.targetGroupArn,
         ContainerPort: containerPort,
         SchedulingStrategy: SchedulingStrategy.REPLICA,
-        HealthCheckGracePeriod: healthCheckGracePeriod.toSeconds(),
+        HealthCheckGracePeriod: healthCheckGracePeriod ? healthCheckGracePeriod.toSeconds() : 300,
         DeploymentConfiguration: {
           maximumPercent: props.maxHealthyPercent ?? 200,
           minimumHealthyPercent: props.minHealthyPercent ?? 50,
