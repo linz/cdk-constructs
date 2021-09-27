@@ -1,29 +1,81 @@
 {
-  "name": "root",
-  "private": true,
-  "scripts": {
-    "bootstrap": "lerna bootstrap",
-    "prepare": "FORCE_COLOR=1 lerna run build",
-    "test": "cdkdx test",
-    "build": "FORCE_COLOR=1 lerna run build",
-    "outdated:all": "yarn outdated",
-    "upgrade:all": "yarn upgrade",
-    "upgrade:cdk": "FORCE_COLOR=1 lerna run upgrade:cdk && yarn",
-    "upgrade-interactive:all": "yarn upgrade-interactive --latest",
-    "lint": "cdkdx lint --report-unused-disable-directives",
-    "lint:fix": "cdkdx lint --fix",
-    "docgen": "FORCE_COLOR=1 lerna run docgen --scope @cloudcomponents/*",
-    "package": "FORCE_COLOR=1 lerna run package --scope @cloudcomponents/*",
-    "release:npm": "FORCE_COLOR=1 lerna run release:npm --scope @cloudcomponents/*",
-    "release:pypi": "FORCE_COLOR=1 lerna run release:pypi --scope @cloudcomponents/*"
+  "name": "@linz/cdk-blue-green-container-deployment",
+  "version": "1.43.3",
+  "description": "Blue green container deployment with CodeDeploy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/linz/cdk-constructs.git",
+    "directory": "packages/cdk-blue-green-deployment"
   },
-  "workspaces": [
-    "packages/*",
-    "examples/*"
+  "homepage": "https://github.com/linz/cdk-constructs",
+  "keywords": [
+    "aws",
+    "cdk",
+    "ecr",
+    "docker",
+    "ecs",
+    "codedeploy",
+    "blue green",
+    "@cloudcomponents"
   ],
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib",
+    ".jsii"
+  ],
+  "scripts": {
+    "build": "cdkdx build",
+    "watch": "cdkdx build -w",
+    "test": "cdkdx test",
+    "lint": "cdkdx lint",
+    "upgrade:cdk": "cdkdx upgrade-cdk",
+    "package": "cdkdx package",
+    "docgen": "cdkdx docgen",
+    "release:npm": "cdkdx release npm",
+    "release:pypi": "cdkdx release pypi"
+  },
+  "jsii": {
+    "outdir": "dist",
+    "tsc": {
+      "outDir": "lib",
+      "rootDir": "src"
+    },
+    "excludeTypescript": [
+      "src/lambdas",
+      "src/**/__tests__"
+    ]
+  },
+  "peerDependencies": {
+    "@aws-cdk/aws-codebuild": "^1.115.0",
+    "@aws-cdk/aws-codedeploy": "^1.115.0",
+    "@aws-cdk/aws-ec2": "^1.115.0",
+    "@aws-cdk/aws-ecr": "^1.115.0",
+    "@aws-cdk/aws-ecs": "^1.115.0",
+    "@aws-cdk/aws-elasticloadbalancingv2": "^1.115.0",
+    "@aws-cdk/aws-iam": "^1.115.0",
+    "@aws-cdk/core": "^1.115.0",
+    "constructs": "^3.2.0"
+  },
+  "dependencies": {
+    "@aws-cdk/aws-codebuild": "^1.115.0",
+    "@aws-cdk/aws-codedeploy": "^1.115.0",
+    "@aws-cdk/aws-ec2": "^1.115.0",
+    "@aws-cdk/aws-ecr": "^1.115.0",
+    "@aws-cdk/aws-ecs": "^1.115.0",
+    "@aws-cdk/aws-elasticloadbalancingv2": "^1.115.0",
+    "@aws-cdk/aws-iam": "^1.115.0",
+    "@aws-cdk/core": "^1.115.0",
+    "aws-lambda": "^1.0.6"
+  },
   "devDependencies": {
-    "@types/node": "^12.12.50",
-    "cdkdx": "^1.1.0",
-    "lerna": "^4.0.0"
-  }
+    "@aws-cdk/assert": "^1.115.0",
+    "aws-sdk": "^2.951.0",
+    "jest-cdk-snapshot": "^1.4.2"
+  },
+  "externals": [
+    "aws-sdk"
+  ],
+  "gitHead": "b1ac0776c6169c1ca4a1434cad09d99c0ecb41ab"
 }
