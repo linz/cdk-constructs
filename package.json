@@ -1,6 +1,6 @@
 {
   "name": "@linz/cdk-blue-green-container-deployment",
-  "version": "1.43.6",
+  "version": "1.43.7",
   "description": "Blue green container deployment with CodeDeploy",
   "license": "MIT",
   "repository": {
@@ -56,7 +56,8 @@
     "@aws-cdk/aws-elasticloadbalancingv2": "^1.115.0",
     "@aws-cdk/aws-iam": "^1.115.0",
     "@aws-cdk/core": "^1.115.0",
-    "constructs": "^3.2.0"
+    "constructs": "^3.2.0",
+    "aws-lambda": "^1.0.6"
   },
   "dependencies": {
     "@aws-cdk/aws-codebuild": "^1.115.0",
@@ -70,6 +71,8 @@
     "aws-lambda": "^1.0.6"
   },
   "devDependencies": {
+    "@types/node": "^12.12.50",
+    "cdkdx": "^1.1.0",
     "@aws-cdk/assert": "^1.115.0",
     "aws-sdk": "^2.951.0",
     "jest-cdk-snapshot": "^1.4.2"

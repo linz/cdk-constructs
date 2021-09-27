@@ -61,7 +61,6 @@ typings/
 .next
 
 # custom
-lib
 .DS_Store
 cdk.out
 dist
