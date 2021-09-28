@@ -23,7 +23,7 @@ export interface EcsServiceProps {
      *
      * @default - defaults to 60 seconds if at least one load balancer is in-use and it is not already set
      */
-    readonly healthCheckGracePeriod?: Duration;
+    readonly healthCheckGracePeriod: Duration;
     /**
      * The maximum number of tasks, specified as a percentage of the Amazon ECS
      * service's DesiredCount value, that can run in a service during a

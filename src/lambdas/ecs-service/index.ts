@@ -45,7 +45,7 @@ const getProperties = (props: CloudFormationCustomResourceEvent['ResourcePropert
   targetGroupArn: props.TargetGroupArn,
   containerPort: props.ContainerPort,
   schedulingStrategy: props.SchedulingStrategy,
-  healthCheckGracePeriodSeconds: props.HealthCheckGracePeriodSeconds,
+  healthCheckGracePeriodSeconds: props.HealthCheckGracePeriod,
   deploymentConfiguration: props.DeploymentConfiguration,
 });
 

@@ -29,7 +29,7 @@ export interface EcsServiceProps {
    *
    * @default - defaults to 60 seconds if at least one load balancer is in-use and it is not already set
    */
-  readonly healthCheckGracePeriod?: Duration;
+  readonly healthCheckGracePeriod: Duration;
 
   /**
    * The maximum number of tasks, specified as a percentage of the Amazon ECS
@@ -120,7 +120,7 @@ export class EcsService extends Construct implements IConnectable, IEcsService {
         TargetGroupArn: prodTargetGroup.targetGroupArn,
         ContainerPort: containerPort,
         SchedulingStrategy: SchedulingStrategy.REPLICA,
-        HealthCheckGracePeriod: healthCheckGracePeriod ? healthCheckGracePeriod.toSeconds() : 300,
+        HealthCheckGracePeriod: healthCheckGracePeriod.toSeconds(),
         DeploymentConfiguration: {
           maximumPercent: props.maxHealthyPercent ?? 200,
           minimumHealthyPercent: props.minHealthyPercent ?? 50,
