@@ -115,7 +115,7 @@ export class EcsService extends Construct implements IConnectable, IEcsService {
         LaunchType: launchType,
         PlatformVersion: platformVersion,
         DesiredCount: desiredCount,
-        Subnets: vpc.privateSubnets.map((sn) => sn.subnetId),
+        Subnets: vpc.isolatedSubnets.map((sn) => sn.subnetId),
         SecurityGroups: securityGroups.map((sg) => sg.securityGroupId),
         TargetGroupArn: prodTargetGroup.targetGroupArn,
         ContainerPort: containerPort,
