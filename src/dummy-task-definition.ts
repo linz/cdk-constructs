@@ -1,8 +1,9 @@
 import * as path from 'path';
 
-import { NetworkMode } from '@aws-cdk/aws-ecs';
-import { Role, ServicePrincipal, ManagedPolicy, PolicyStatement, Effect, IRole } from '@aws-cdk/aws-iam';
-import { Construct, CustomResource, CustomResourceProvider, CustomResourceProviderRuntime } from '@aws-cdk/core';
+import { NetworkMode } from 'aws-cdk-lib/aws-ecs';
+import { Role, ServicePrincipal, ManagedPolicy, PolicyStatement, Effect, IRole } from 'aws-cdk-lib/aws-iam';
+import { CustomResource, CustomResourceProvider, CustomResourceProviderRuntime } from 'aws-cdk-lib';
+import { Construct } from 'constructs';
 
 export interface IDummyTaskDefinition {
   readonly executionRole: IRole;

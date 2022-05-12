@@ -1,11 +1,12 @@
 import * as path from 'path';
-import { IConnectable, Connections, SecurityGroup, Port } from '@aws-cdk/aws-ec2';
-import { ICluster, LaunchType, DeploymentCircuitBreaker } from '@aws-cdk/aws-ecs';
-import { ITargetGroup } from '@aws-cdk/aws-elasticloadbalancingv2';
-import { Effect } from '@aws-cdk/aws-iam';
-import { Duration, Construct, CustomResource, CustomResourceProvider, CustomResourceProviderRuntime } from '@aws-cdk/core';
+import { IConnectable, Connections, SecurityGroup, Port } from 'aws-cdk-lib/aws-ec2';
+import { ICluster, LaunchType, DeploymentCircuitBreaker } from 'aws-cdk-lib/aws-ecs';
+import { ITargetGroup } from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import { Effect } from 'aws-cdk-lib/aws-iam';
+import { Duration, CustomResource, CustomResourceProvider, CustomResourceProviderRuntime } from 'aws-cdk-lib';
 
 import { DummyTaskDefinition } from './dummy-task-definition';
+import { Construct } from 'constructs';
 
 export interface IEcsService {
   readonly clusterName: string;

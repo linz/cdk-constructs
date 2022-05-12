@@ -1,7 +1,8 @@
-import { IEcsApplication } from '@aws-cdk/aws-codedeploy';
-import { Construct, Resource, IResource } from '@aws-cdk/core';
+import { IEcsApplication } from 'aws-cdk-lib/aws-codedeploy';
+import { Resource, IResource } from 'aws-cdk-lib';
 import { IEcsDeploymentConfig } from './ecs-deployment-config';
 import { IEcsService } from './ecs-service';
+import { Construct } from 'constructs';
 export interface TrafficListener {
     /**
      * ARN of the listener

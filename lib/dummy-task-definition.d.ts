@@ -1,5 +1,5 @@
-import { PolicyStatement, IRole } from '@aws-cdk/aws-iam';
-import { Construct } from '@aws-cdk/core';
+import { PolicyStatement, IRole } from 'aws-cdk-lib/aws-iam';
+import { Construct } from 'constructs';
 export interface IDummyTaskDefinition {
     readonly executionRole: IRole;
     readonly family: string;

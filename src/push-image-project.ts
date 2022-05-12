@@ -7,13 +7,14 @@ import {
   ComputeType,
   BuildEnvironmentVariable,
   BuildEnvironmentVariableType,
-} from '@aws-cdk/aws-codebuild';
-import { IRepository } from '@aws-cdk/aws-ecr';
-import { PolicyStatement } from '@aws-cdk/aws-iam';
-import { Construct, Stack } from '@aws-cdk/core';
+} from 'aws-cdk-lib/aws-codebuild';
+import { IRepository } from 'aws-cdk-lib/aws-ecr';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { Stack } from 'aws-cdk-lib';
 
 import { BuildSpecGenerator } from './build-spec-generator';
 import { IDummyTaskDefinition } from './dummy-task-definition';
+import { Construct } from 'constructs';
 
 export interface PushImageProjectProps {
   readonly imageRepository: IRepository;

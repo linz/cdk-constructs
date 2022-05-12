@@ -1,10 +1,11 @@
 import * as path from 'path';
-import { EcsApplication, IEcsApplication } from '@aws-cdk/aws-codedeploy';
-import { Role, ServicePrincipal, ManagedPolicy, Effect } from '@aws-cdk/aws-iam';
-import { Aws, Construct, Resource, IResource, CustomResource, CustomResourceProvider, CustomResourceProviderRuntime } from '@aws-cdk/core';
+import { EcsApplication, IEcsApplication } from 'aws-cdk-lib/aws-codedeploy';
+import { Role, ServicePrincipal, ManagedPolicy, Effect } from 'aws-cdk-lib/aws-iam';
+import { Aws, Resource, IResource, CustomResource, CustomResourceProvider, CustomResourceProviderRuntime } from 'aws-cdk-lib';
 
 import { EcsDeploymentConfig, IEcsDeploymentConfig } from './ecs-deployment-config';
 import { IEcsService } from './ecs-service';
+import { Construct } from 'constructs';
 
 export interface TrafficListener {
   /**
