@@ -65,7 +65,7 @@ export class DummyTaskDefinition extends Construct implements IDummyTaskDefiniti
 
     this.tags = new TagManager(TagType.STANDARD, 'TagManager');
 
-    this.executionRole = new Role(this, 'ExecutionRole', {
+    this.executionRole = new Role(this, `${id}-ER`, {
       assumedBy: new ServicePrincipal('ecs-tasks.amazonaws.com'),
       managedPolicies: [ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonECSTaskExecutionRolePolicy')],
     });
@@ -110,7 +110,7 @@ export class DummyTaskDefinition extends Construct implements IDummyTaskDefiniti
       },
     };
 
-    const taskDefinition = new AwsCustomResource(this, 'DummyTaskDefinition', {
+    const taskDefinition = new AwsCustomResource(this, `${id}-CRTask`, {
       resourceType: 'Custom::DummyTaskDefinition',
       onCreate: registerTaskDefinition,
       onUpdate: registerTaskDefinition,

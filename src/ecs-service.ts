@@ -102,7 +102,7 @@ export class EcsService extends Construct implements IConnectable, IEcsService, 
       }),
     ];
 
-    const serviceToken = new Function(this, 'Function', {
+    const serviceToken = new Function(this, `${id}-BGToken`, {
       runtime: Runtime.NODEJS_14_X,
       code: Code.fromAsset(path.join(__dirname, 'lambdas', 'ecs-service')),
       handler: 'index.handler',
@@ -125,7 +125,7 @@ export class EcsService extends Construct implements IConnectable, IEcsService, 
       }),
     );
 
-    const service = new CustomResource(this, 'CustomResource', {
+    const service = new CustomResource(this, `${id}-ECSCR`, {
       serviceToken: serviceToken.functionArn,
       resourceType: 'Custom::BlueGreenService',
       properties: {
