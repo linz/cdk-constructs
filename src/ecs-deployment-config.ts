@@ -1,5 +1,5 @@
-import { CfnDeploymentConfig } from 'aws-cdk-lib/aws-codedeploy';
 import { Aws, IResolvable, Resource } from 'aws-cdk-lib';
+import { CfnDeploymentConfig } from 'aws-cdk-lib/aws-codedeploy';
 import { Construct } from 'constructs';
 
 export interface IEcsDeploymentConfig {
@@ -56,7 +56,7 @@ export class EcsDeploymentConfig extends Resource implements IEcsDeploymentConfi
   constructor(scope: Construct, id: string, props: EcsDeploymentConfigurationProps) {
     super(scope, id);
 
-    const cfnDeploymentConfig = new CfnDeploymentConfig(this, `${id}-EcsDeploymentConf`, {
+    const cfnDeploymentConfig = new CfnDeploymentConfig(this, 'EcsDeploymentConfiguration', {
       computePlatform: 'ECS',
       ...props,
     });

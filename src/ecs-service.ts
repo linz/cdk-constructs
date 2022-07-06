@@ -1,12 +1,13 @@
 import * as path from 'path';
+import { Duration, CustomResource, ITaggable, TagManager, TagType, Lazy } from 'aws-cdk-lib';
 import { IConnectable, Connections, SecurityGroup, Port } from 'aws-cdk-lib/aws-ec2';
 import { ICluster, LaunchType, DeploymentCircuitBreaker } from 'aws-cdk-lib/aws-ecs';
 import { ITargetGroup } from 'aws-cdk-lib/aws-elasticloadbalancingv2';
-import { Effect } from 'aws-cdk-lib/aws-iam';
-import { Duration, CustomResource, CustomResourceProvider, CustomResourceProviderRuntime } from 'aws-cdk-lib';
+import { Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
+import { Construct } from 'constructs';
 
 import { DummyTaskDefinition } from './dummy-task-definition';
-import { Construct } from 'constructs';
 
 export interface IEcsService {
   readonly clusterName: string;
@@ -22,6 +23,7 @@ export interface EcsServiceProps {
   readonly desiredCount?: number;
   readonly containerPort?: number;
   readonly prodTargetGroup: ITargetGroup;
+  readonly testTargetGroup: ITargetGroup;
   readonly taskDefinition: DummyTaskDefinition;
 
   /**
@@ -30,7 +32,7 @@ export interface EcsServiceProps {
    *
    * @default - defaults to 60 seconds if at least one load balancer is in-use and it is not already set
    */
-  readonly healthCheckGracePeriod: Duration;
+  readonly healthCheckGracePeriod?: Duration;
 
   /**
    * The maximum number of tasks, specified as a percentage of the Amazon ECS
@@ -56,12 +58,19 @@ export interface EcsServiceProps {
    * @default - disabled
    */
   readonly circuitBreaker?: DeploymentCircuitBreaker;
+
+  /**
+   * Specifies whether to propagate the tags from the task definition or the service to the tasks in the service. If no value is specified, the tags aren't propagated.
+   * @default - no propagate
+   */
+  readonly propagateTags?: PropagateTags;
 }
 
-export class EcsService extends Construct implements IConnectable, IEcsService {
+export class EcsService extends Construct implements IConnectable, IEcsService, ITaggable {
   public readonly clusterName: string;
   public readonly serviceName: string;
   public readonly connections: Connections;
+  public readonly tags: TagManager;
 
   constructor(scope: Construct, id: string, props: EcsServiceProps) {
     super(scope, id);
@@ -73,40 +82,51 @@ export class EcsService extends Construct implements IConnectable, IEcsService {
       platformVersion = '1.4.0',
       desiredCount = 1,
       prodTargetGroup,
+      testTargetGroup,
       taskDefinition,
-      healthCheckGracePeriod,
+      healthCheckGracePeriod = Duration.seconds(60),
     } = props;
+
+    this.tags = new TagManager(TagType.KEY_VALUE, 'TagManager');
 
     const containerPort = props.containerPort ?? taskDefinition.containerPort;
 
     const { vpc } = cluster;
 
+    this.node.addDependency(prodTargetGroup, testTargetGroup);
+
     const securityGroups = props.securityGroups || [
-      new SecurityGroup(this, `${id}-SG`, {
+      new SecurityGroup(this, 'SecurityGroup', {
         description: `Security group for ${this.node.id} service`,
         vpc,
       }),
     ];
 
-    const serviceToken = CustomResourceProvider.getOrCreate(this, `${id}-BGService`, {
-      codeDirectory: path.join(__dirname, 'lambdas', 'ecs-service'),
-      runtime: CustomResourceProviderRuntime.NODEJS_12_X,
-      policyStatements: [
-        {
-          Effect: Effect.ALLOW,
-          Action: ['ecs:CreateService', 'ecs:UpdateService', 'ecs:DeleteService', 'ecs:DescribeServices'],
-          Resource: '*',
-        },
-        {
-          Effect: Effect.ALLOW,
-          Action: ['iam:PassRole'],
-          Resource: taskDefinition.executionRole.roleArn,
-        },
-      ],
+    const serviceToken = new Function(this, 'Function', {
+      runtime: Runtime.NODEJS_14_X,
+      code: Code.fromAsset(path.join(__dirname, 'lambdas', 'ecs-service')),
+      handler: 'index.handler',
+      timeout: Duration.minutes(15),
     });
 
-    const service = new CustomResource(this, `${id}-ECSCR`, {
-      serviceToken,
+    serviceToken.addToRolePolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ['ecs:CreateService', 'ecs:UpdateService', 'ecs:DeleteService', 'ecs:DescribeServices', 'ecs:TagResource', 'ecs:UntagResource'],
+        resources: ['*'],
+      }),
+    );
+
+    serviceToken.addToRolePolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ['iam:PassRole'],
+        resources: [taskDefinition.executionRole.roleArn],
+      }),
+    );
+
+    const service = new CustomResource(this, 'CustomResource', {
+      serviceToken: serviceToken.functionArn,
       resourceType: 'Custom::BlueGreenService',
       properties: {
         Cluster: cluster.clusterName,
@@ -116,22 +136,24 @@ export class EcsService extends Construct implements IConnectable, IEcsService {
         LaunchType: launchType,
         PlatformVersion: platformVersion,
         DesiredCount: desiredCount,
-        Subnets: vpc.isolatedSubnets.map((sn) => sn.subnetId),
+        Subnets: vpc.privateSubnets.map((sn) => sn.subnetId),
         SecurityGroups: securityGroups.map((sg) => sg.securityGroupId),
         TargetGroupArn: prodTargetGroup.targetGroupArn,
         ContainerPort: containerPort,
         SchedulingStrategy: SchedulingStrategy.REPLICA,
-        HealthCheckGracePeriod: healthCheckGracePeriod.toSeconds(),
+        HealthCheckGracePeriodSeconds: healthCheckGracePeriod.toSeconds(),
+        PropagateTags: props.propagateTags,
         DeploymentConfiguration: {
           maximumPercent: props.maxHealthyPercent ?? 200,
           minimumHealthyPercent: props.minHealthyPercent ?? 50,
           deploymentCircuitBreaker: props.circuitBreaker
             ? {
-                enable: true,
-                rollback: props.circuitBreaker.rollback ?? false,
-              }
+              enable: true,
+              rollback: props.circuitBreaker.rollback ?? false,
+            }
             : undefined,
         },
+        Tags: Lazy.any({ produce: () => this.tags.renderTags() }),
       },
     });
 
@@ -150,4 +172,9 @@ export class EcsService extends Construct implements IConnectable, IEcsService {
 export enum SchedulingStrategy {
   REPLICA = 'REPLICA',
   DAEMON = 'DAEMON',
+}
+
+export enum PropagateTags {
+  TASK_DEFINITION = 'TASK_DEFINITION',
+  SERVICE = 'SERVICE',
 }

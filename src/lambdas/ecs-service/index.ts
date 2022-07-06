@@ -1,16 +1,18 @@
-import type {
-  CloudFormationCustomResourceEvent,
-  CloudFormationCustomResourceCreateEvent,
-  CloudFormationCustomResourceUpdateEvent,
-  CloudFormationCustomResourceDeleteEvent,
-} from 'aws-lambda';
+import type { CloudFormationCustomResourceEvent } from 'aws-lambda';
 import { ECS } from 'aws-sdk';
+import {
+  customResourceHelper,
+  OnCreateHandler,
+  OnUpdateHandler,
+  OnDeleteHandler,
+  ResourceHandler,
+  ResourceHandlerReturn,
+} from 'custom-resource-helper';
 
-interface HandlerReturn {
-  PhysicalResourceId: string;
-  Data: {
-    ServiceName: string;
-  };
+
+export interface Tag {
+  Key: string;
+  Value: string;
 }
 
 export interface BlueGreenServiceProps {
@@ -28,6 +30,8 @@ export interface BlueGreenServiceProps {
   schedulingStrategy: string;
   healthCheckGracePeriodSeconds: number;
   deploymentConfiguration: ECS.DeploymentConfiguration;
+  propagateTags: 'SERVICE' | 'TASK_DEFINITION' | string;
+  tags: Tag[];
 }
 
 const ecs = new ECS();
@@ -45,11 +49,13 @@ const getProperties = (props: CloudFormationCustomResourceEvent['ResourcePropert
   targetGroupArn: props.TargetGroupArn,
   containerPort: props.ContainerPort,
   schedulingStrategy: props.SchedulingStrategy,
-  healthCheckGracePeriodSeconds: props.HealthCheckGracePeriod,
+  healthCheckGracePeriodSeconds: props.HealthCheckGracePeriodSeconds,
   deploymentConfiguration: props.DeploymentConfiguration,
+  propagateTags: props.PropagateTags,
+  tags: props.Tags ?? [],
 });
 
-const onCreate = async (event: CloudFormationCustomResourceCreateEvent): Promise<HandlerReturn> => {
+export const handleCreate: OnCreateHandler = async (event): Promise<ResourceHandlerReturn> => {
   const {
     cluster,
     serviceName,
@@ -65,6 +71,8 @@ const onCreate = async (event: CloudFormationCustomResourceCreateEvent): Promise
     schedulingStrategy,
     healthCheckGracePeriodSeconds,
     deploymentConfiguration,
+    propagateTags,
+    tags,
   } = getProperties(event.ResourceProperties);
 
   const { service } = await ecs
@@ -76,6 +84,7 @@ const onCreate = async (event: CloudFormationCustomResourceCreateEvent): Promise
       platformVersion,
       desiredCount,
       schedulingStrategy,
+      propagateTags,
       deploymentController: {
         type: 'CODE_DEPLOY',
       },
@@ -89,19 +98,22 @@ const onCreate = async (event: CloudFormationCustomResourceCreateEvent): Promise
       healthCheckGracePeriodSeconds,
       loadBalancers: [
         {
-          targetGroupArn: targetGroupArn,
+          targetGroupArn,
           containerPort,
           containerName,
         },
       ],
+      tags: tags.map((t) => {
+        return { key: t.Key, value: t.Value };
+      }),
     })
     .promise();
 
   if (!service) throw Error('Service could not be created');
 
   return {
-    PhysicalResourceId: service.serviceArn as string,
-    Data: {
+    physicalResourceId: service.serviceArn as string,
+    responseData: {
       ServiceName: service.serviceName as string,
     },
   };
@@ -115,8 +127,10 @@ const onCreate = async (event: CloudFormationCustomResourceCreateEvent): Promise
  * updated, a new AWS CodeDeploy deployment should be created.
  * For more information, see CreateDeployment in the AWS CodeDeploy API Reference.
  */
-const onUpdate = async (event: CloudFormationCustomResourceUpdateEvent): Promise<HandlerReturn> => {
-  const { cluster, serviceName, desiredCount, deploymentConfiguration, healthCheckGracePeriodSeconds } = getProperties(event.ResourceProperties);
+export const handleUpdate: OnUpdateHandler = async (event): Promise<ResourceHandlerReturn> => {
+  const { cluster, serviceName, desiredCount, deploymentConfiguration, healthCheckGracePeriodSeconds, tags } = getProperties(
+    event.ResourceProperties,
+  );
 
   const { service } = await ecs
     .updateService({
@@ -130,15 +144,38 @@ const onUpdate = async (event: CloudFormationCustomResourceUpdateEvent): Promise
 
   if (!service) throw Error('Service could not be updated');
 
+  const newTagKeys: string[] = tags.map((t: Tag) => t.Key);
+  const removableTagKeys: string[] = (event.OldResourceProperties.Tags || []).map((t: Tag) => t.Key).filter((t: string) => !newTagKeys.includes(t));
+
+  if (removableTagKeys.length > 0) {
+    await ecs
+      .untagResource({
+        resourceArn: service.serviceArn as string,
+        tagKeys: removableTagKeys,
+      })
+      .promise();
+  }
+
+  if (tags.length > 0) {
+    await ecs
+      .tagResource({
+        resourceArn: service.serviceArn as string,
+        tags: tags.map((t) => {
+          return { key: t.Key, value: t.Value };
+        }),
+      })
+      .promise();
+  }
+
   return {
-    PhysicalResourceId: service.serviceArn as string,
-    Data: {
+    physicalResourceId: service.serviceArn as string,
+    responseData: {
       ServiceName: service.serviceName as string,
     },
   };
 };
 
-const onDelete = async (event: CloudFormationCustomResourceDeleteEvent): Promise<void> => {
+const handleDelete: OnDeleteHandler = async (event): Promise<void> => {
   const { cluster, serviceName } = getProperties(event.ResourceProperties);
 
   await ecs
@@ -157,17 +194,10 @@ const onDelete = async (event: CloudFormationCustomResourceDeleteEvent): Promise
     .promise();
 };
 
-export const handler = async (event: CloudFormationCustomResourceEvent): Promise<HandlerReturn | void> => {
-  const requestType = event.RequestType;
-
-  switch (requestType) {
-    case 'Create':
-      return onCreate(event as CloudFormationCustomResourceCreateEvent);
-    case 'Update':
-      return onUpdate(event as CloudFormationCustomResourceUpdateEvent);
-    case 'Delete':
-      return onDelete(event as CloudFormationCustomResourceDeleteEvent);
-    default:
-      throw new Error(`Invalid request type: ${requestType}`);
-  }
-};
+export const handler = customResourceHelper(
+  (): ResourceHandler => ({
+    onCreate: handleCreate,
+    onUpdate: handleUpdate,
+    onDelete: handleDelete,
+  }),
+);

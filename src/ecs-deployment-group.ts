@@ -1,11 +1,13 @@
 import * as path from 'path';
+import { Resource, IResource, CustomResource, Duration, ITaggable, TagType, TagManager, Lazy } from 'aws-cdk-lib';
 import { EcsApplication, IEcsApplication } from 'aws-cdk-lib/aws-codedeploy';
-import { Role, ServicePrincipal, ManagedPolicy, Effect } from 'aws-cdk-lib/aws-iam';
-import { Aws, Resource, IResource, CustomResource, CustomResourceProvider, CustomResourceProviderRuntime } from 'aws-cdk-lib';
+import { ApplicationTargetGroup } from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import { Role, ServicePrincipal, ManagedPolicy, Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
+import { Construct } from 'constructs';
 
 import { EcsDeploymentConfig, IEcsDeploymentConfig } from './ecs-deployment-config';
 import { IEcsService } from './ecs-service';
-import { Construct } from 'constructs';
 
 export interface TrafficListener {
   /**
@@ -41,6 +43,19 @@ export interface IEcsDeploymentGroup extends IResource {
 }
 
 export interface EcsDeploymentGroupProps {
+  /**
+   * The CodeDeploy Application to associate to the DeploymentGroup.
+   *
+   * @default - create a new CodeDeploy Application.
+   */
+  readonly application?: IEcsApplication;
+
+  /**
+   * The name to use for the implicitly created CodeDeploy Application.
+   *
+   * @default - uses auto-generated name
+   * @deprecated Use {@link application} instead to create a custom CodeDeploy Application.
+   */
   readonly applicationName?: string;
 
   readonly deploymentGroupName: string;
@@ -49,7 +64,7 @@ export interface EcsDeploymentGroupProps {
 
   readonly ecsServices: IEcsService[];
 
-  readonly targetGroupNames: string[];
+  readonly targetGroups: ApplicationTargetGroup[];
 
   readonly prodTrafficListener: TrafficListener;
 
@@ -62,9 +77,9 @@ export interface EcsDeploymentGroupProps {
    *
    * The maximum setting is 2880 minutes (2 days).
    *
-   * @default 60
+   * @default 60 minutes
    */
-  readonly terminationWaitTimeInMinutes?: number;
+  readonly terminationWaitTime?: Duration;
 
   /**
    * The event type or types that trigger a rollback.
@@ -72,89 +87,106 @@ export interface EcsDeploymentGroupProps {
   readonly autoRollbackOnEvents?: RollbackEvent[];
 }
 
-export class EcsDeploymentGroup extends Resource implements IEcsDeploymentGroup {
+export class EcsDeploymentGroup extends Resource implements IEcsDeploymentGroup, ITaggable {
   public readonly application: IEcsApplication;
   public readonly deploymentGroupName: string;
   public readonly deploymentGroupArn: string;
   public readonly deploymentConfig: IEcsDeploymentConfig;
+  public readonly tags: TagManager;
 
   constructor(scope: Construct, id: string, props: EcsDeploymentGroupProps) {
     super(scope, id);
 
+    this.tags = new TagManager(TagType.KEY_VALUE, 'TagManager');
+
     const {
-      applicationName,
+      application,
       deploymentGroupName,
       deploymentConfig,
       ecsServices,
-      targetGroupNames,
+      targetGroups,
       prodTrafficListener,
       testTrafficListener,
-      terminationWaitTimeInMinutes = 60,
+      terminationWaitTime = Duration.minutes(60),
       autoRollbackOnEvents,
     } = props;
 
-    if (terminationWaitTimeInMinutes > 2880) {
+    if (terminationWaitTime.toMinutes() > 2880) {
       throw new Error('Invalid TerminationWaitTimeInMinutes: The maximum setting is 2880 minutes (2 days).');
     }
 
-    const codeDeployEcsRole = new Role(this, `${id}-ECSRole`, {
+    const codeDeployEcsRole = new Role(this, 'Role', {
       assumedBy: new ServicePrincipal('codedeploy.amazonaws.com'),
       managedPolicies: [ManagedPolicy.fromAwsManagedPolicyName('AWSCodeDeployRoleForECS')],
     });
 
-    this.application = new EcsApplication(this, `${id}-ECSApp`, {
-      applicationName,
+    if (application) {
+      this.application = application;
+    } else {
+      this.application = new EcsApplication(this, 'EcsApplication', {
+        applicationName: props.applicationName, // support deprecated applicationName prop
+      });
+    }
+
+    const serviceToken = new Function(this, 'Function', {
+      runtime: Runtime.NODEJS_14_X,
+      code: Code.fromAsset(path.join(__dirname, 'lambdas', 'ecs-deployment-group')),
+      handler: 'index.handler',
+      timeout: Duration.minutes(15),
     });
 
-    const serviceToken = CustomResourceProvider.getOrCreate(this, `${id}-ECSToken`, {
-      codeDirectory: path.join(__dirname, 'lambdas', 'ecs-deployment-group'),
-      runtime: CustomResourceProviderRuntime.NODEJS_12_X,
-      policyStatements: [
-        {
-          Effect: Effect.ALLOW,
-          Action: ['codeDeploy:CreateDeploymentGroup', 'codeDeploy:UpdateDeploymentGroup', 'codeDeploy:DeleteDeploymentGroup'],
-          Resource: '*',
-        },
-        {
-          Effect: Effect.ALLOW,
-          Action: ['iam:PassRole'],
-          Resource: codeDeployEcsRole.roleArn,
-        },
-      ],
-    });
+    serviceToken.addToRolePolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: [
+          'codeDeploy:CreateDeploymentGroup',
+          'codeDeploy:UpdateDeploymentGroup',
+          'codeDeploy:DeleteDeploymentGroup',
+          'codeDeploy:TagResource',
+          'codeDeploy:UntagResource',
+        ],
+        resources: ['*'],
+      }),
+    );
+
+    serviceToken.addToRolePolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ['iam:PassRole'],
+        resources: [codeDeployEcsRole.roleArn],
+      }),
+    );
 
     this.deploymentConfig = deploymentConfig || EcsDeploymentConfig.ALL_AT_ONCE;
 
     if (Construct.isConstruct(props.deploymentConfig)) {
       this.node.addDependency(props.deploymentConfig);
     }
+    this.node.addDependency(...ecsServices);
 
-    const ecsDeploymentGroup = new CustomResource(this, `${id}-ECSCR`, {
-      serviceToken,
+    const ecsDeploymentGroup = new CustomResource(this, 'CustomResource', {
+      serviceToken: serviceToken.functionArn,
       resourceType: 'Custom::EcsDeploymentGroup',
       properties: {
         ApplicationName: this.application.applicationName,
         DeploymentGroupName: deploymentGroupName,
         ServiceRoleArn: codeDeployEcsRole.roleArn,
-        TargetGroupNames: targetGroupNames,
+        TargetGroupNames: targetGroups.map((tg) => tg.targetGroupName),
         EcsServices: ecsServices.map((service) => ({
           ClusterName: service.clusterName,
           ServiceName: service.serviceName,
         })),
         ProdTrafficListenerArn: prodTrafficListener.listenerArn,
         TestTrafficListenerArn: testTrafficListener.listenerArn,
-        TerminationWaitTimeInMinutes: terminationWaitTimeInMinutes,
+        TerminationWaitTimeInMinutes: terminationWaitTime.toMinutes(),
         AutoRollbackOnEvents: autoRollbackOnEvents,
         DeploymentConfigName: this.deploymentConfig.deploymentConfigName,
+        Tags: Lazy.any({ produce: () => this.tags.renderTags() }),
       },
     });
 
     this.deploymentGroupName = ecsDeploymentGroup.ref;
-    this.deploymentGroupArn = this.arnForDeploymentGroup(this.application.applicationName, this.deploymentGroupName);
-  }
-
-  private arnForDeploymentGroup(applicationName: string, deploymentGroupName: string): string {
-    return `arn:${Aws.PARTITION}:codedeploy:${Aws.REGION}:${Aws.ACCOUNT_ID}:deploymentgroup:${applicationName}/${deploymentGroupName}`;
+    this.deploymentGroupArn = ecsDeploymentGroup.getAttString('Arn');
   }
 }
 
