@@ -27,15 +27,10 @@
     ".jsii"
   ],
   "scripts": {
-    "build": "cdkdx build",
-    "watch": "cdkdx build -w",
+    "build": "npx tsc -b",
+    "watch": "npx tsc -w",
     "test": "cdkdx test",
-    "lint": "cdkdx lint",
-    "upgrade:cdk": "cdkdx upgrade-cdk",
-    "package": "cdkdx package",
-    "docgen": "cdkdx docgen",
-    "release:npm": "cdkdx release npm",
-    "release:pypi": "cdkdx release pypi"
+    "release": "npm publish"
   },
   "jsii": {
     "outdir": "dist",
