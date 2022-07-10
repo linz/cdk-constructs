@@ -1,3 +1,4 @@
+import { Stack } from 'aws-cdk-lib';
 import {
   Cache,
   LocalCacheMode,
@@ -10,11 +11,10 @@ import {
 } from 'aws-cdk-lib/aws-codebuild';
 import { IRepository } from 'aws-cdk-lib/aws-ecr';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { Stack } from 'aws-cdk-lib';
+import { Construct } from 'constructs';
 
 import { BuildSpecGenerator } from './build-spec-generator';
 import { IDummyTaskDefinition } from './dummy-task-definition';
-import { Construct } from 'constructs';
 
 export interface PushImageProjectProps {
   readonly imageRepository: IRepository;

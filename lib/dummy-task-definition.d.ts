@@ -1,3 +1,4 @@
+import { ITaggable, TagManager } from 'aws-cdk-lib';
 import { PolicyStatement, IRole } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 export interface IDummyTaskDefinition {
@@ -29,12 +30,13 @@ export interface DummyTaskDefinitionProps {
      */
     readonly containerPort?: number;
 }
-export declare class DummyTaskDefinition extends Construct implements IDummyTaskDefinition {
+export declare class DummyTaskDefinition extends Construct implements IDummyTaskDefinition, ITaggable {
     readonly executionRole: IRole;
     readonly family: string;
     readonly taskDefinitionArn: string;
     readonly containerName: string;
     readonly containerPort: number;
+    readonly tags: TagManager;
     constructor(scope: Construct, id: string, props: DummyTaskDefinitionProps);
     /**
      * Adds a policy statement to the task execution IAM role.

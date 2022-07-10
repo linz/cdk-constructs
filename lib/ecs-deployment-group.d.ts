@@ -1,8 +1,9 @@
+import { Resource, IResource, Duration, ITaggable, TagManager } from 'aws-cdk-lib';
 import { IEcsApplication } from 'aws-cdk-lib/aws-codedeploy';
-import { Resource, IResource } from 'aws-cdk-lib';
+import { ApplicationTargetGroup } from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import { Construct } from 'constructs';
 import { IEcsDeploymentConfig } from './ecs-deployment-config';
 import { IEcsService } from './ecs-service';
-import { Construct } from 'constructs';
 export interface TrafficListener {
     /**
      * ARN of the listener
@@ -32,11 +33,23 @@ export interface IEcsDeploymentGroup extends IResource {
     readonly deploymentConfig: IEcsDeploymentConfig;
 }
 export interface EcsDeploymentGroupProps {
+    /**
+     * The CodeDeploy Application to associate to the DeploymentGroup.
+     *
+     * @default - create a new CodeDeploy Application.
+     */
+    readonly application?: IEcsApplication;
+    /**
+     * The name to use for the implicitly created CodeDeploy Application.
+     *
+     * @default - uses auto-generated name
+     * @deprecated Use {@link application} instead to create a custom CodeDeploy Application.
+     */
     readonly applicationName?: string;
     readonly deploymentGroupName: string;
     readonly deploymentConfig?: IEcsDeploymentConfig;
     readonly ecsServices: IEcsService[];
-    readonly targetGroupNames: string[];
+    readonly targetGroups: ApplicationTargetGroup[];
     readonly prodTrafficListener: TrafficListener;
     readonly testTrafficListener: TrafficListener;
     /**
@@ -46,21 +59,21 @@ export interface EcsDeploymentGroupProps {
      *
      * The maximum setting is 2880 minutes (2 days).
      *
-     * @default 60
+     * @default 60 minutes
      */
-    readonly terminationWaitTimeInMinutes?: number;
+    readonly terminationWaitTime?: Duration;
     /**
      * The event type or types that trigger a rollback.
      */
     readonly autoRollbackOnEvents?: RollbackEvent[];
 }
-export declare class EcsDeploymentGroup extends Resource implements IEcsDeploymentGroup {
+export declare class EcsDeploymentGroup extends Resource implements IEcsDeploymentGroup, ITaggable {
     readonly application: IEcsApplication;
     readonly deploymentGroupName: string;
     readonly deploymentGroupArn: string;
     readonly deploymentConfig: IEcsDeploymentConfig;
+    readonly tags: TagManager;
     constructor(scope: Construct, id: string, props: EcsDeploymentGroupProps);
-    private arnForDeploymentGroup;
 }
 export declare enum RollbackEvent {
     DEPLOYMENT_FAILURE = "DEPLOYMENT_FAILURE",

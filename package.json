@@ -1,6 +1,6 @@
 {
   "name": "@linz/cdk-blue-green-container-deployment",
-  "version": "1.49.0",
+  "version": "1.50.7",
   "description": "Blue green container deployment with CodeDeploy",
   "author": "Linz",
   "license": "MIT",
@@ -27,15 +27,10 @@
     ".jsii"
   ],
   "scripts": {
-    "build": "cdkdx build",
-    "watch": "cdkdx build -w",
+    "build": "npx tsc -b",
+    "watch": "npx tsc -w",
     "test": "cdkdx test",
-    "lint": "cdkdx lint",
-    "upgrade:cdk": "cdkdx upgrade-cdk",
-    "package": "cdkdx package",
-    "docgen": "cdkdx docgen",
-    "release:npm": "cdkdx release npm",
-    "release:pypi": "cdkdx release pypi"
+    "release": "npm publish"
   },
   "jsii": {
     "outdir": "dist",
@@ -49,22 +44,23 @@
     ]
   },
   "peerDependencies": {
-    "aws-cdk-lib": "^2.0.0",
-    "constructs": "^10.0.0"
-  },
-  "dependencies": {
-    "aws-cdk-lib": "^2.0.0",
-    "constructs": "^10.0.0"
+    "aws-cdk-lib": "^2.8.0",
+    "constructs": "^10.0.41"
   },
   "devDependencies": {
-    "@types/node": "^12.12.50",
-    "cdkdx": "^1.1.0",
-    "@aws-cdk/assert": "^1.115.0",
-    "aws-sdk": "^2.951.0",
-    "jest-cdk-snapshot": "^1.4.2"
+    "@aws-cdk/assert": "2.8.0",
+    "aws-cdk-lib": "^2.8.0",
+    "aws-sdk": "^2.1096.0",
+    "constructs": "^10.0.41",
+    "custom-resource-helper": "^1.0.15",
+    "jest-cdk-snapshot": "^2.0.1",
+    "winston": "^3.3.3",
+    "aws-lambda": "1.0.7",
+    "@types/aws-lambda": "8.10.101"
   },
   "externals": [
-    "aws-sdk"
+    "aws-sdk",
+    "aws-lambda"
   ],
   "gitHead": "b1ac0776c6169c1ca4a1434cad09d99c0ecb41ab"
 }

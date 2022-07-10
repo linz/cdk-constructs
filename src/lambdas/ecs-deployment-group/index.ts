@@ -1,19 +1,18 @@
-import type {
-  CloudFormationCustomResourceEvent,
-  CloudFormationCustomResourceCreateEvent,
-  CloudFormationCustomResourceUpdateEvent,
-  CloudFormationCustomResourceDeleteEvent,
-} from 'aws-lambda';
+import type { CloudFormationCustomResourceEvent, CloudFormationCustomResourceUpdateEvent } from 'aws-lambda';
 import { CodeDeploy } from 'aws-sdk';
+import {
+  customResourceHelper,
+  OnCreateHandler,
+  OnUpdateHandler,
+  OnDeleteHandler,
+  ResourceHandler,
+  ResourceHandlerReturn,
+} from 'custom-resource-helper';
 
 enum RollbackEvent {
   DEPLOYMENT_FAILURE = 'DEPLOYMENT_FAILURE',
   DEPLOYMENT_STOP_ON_ALARM = 'DEPLOYMENT_STOP_ON_ALARM',
   DEPLOYMENT_STOP_ON_REQUEST = 'DEPLOYMENT_STOP_ON_REQUEST',
-}
-
-interface HandlerReturn {
-  PhysicalResourceId: string;
 }
 
 export interface EcsDeploymentGroupProps {
@@ -25,8 +24,15 @@ export interface EcsDeploymentGroupProps {
   prodTrafficListenerArn: string;
   testTrafficListenerArn: string;
   terminationWaitTimeInMinutes: number;
+  tags: CodeDeploy.Tag[];
   autoRollbackOnEvents?: RollbackEvent[];
   deploymentConfigName?: string;
+}
+
+interface ArnParts {
+  awsPartition: string;
+  awsRegion: string;
+  awsAccountId: string;
 }
 
 const codeDeploy = new CodeDeploy();
@@ -47,9 +53,10 @@ const getProperties = (
   terminationWaitTimeInMinutes: props.TerminationWaitTimeInMinutes,
   autoRollbackOnEvents: props.AutoRollbackOnEvents,
   deploymentConfigName: props.DeploymentConfigName,
+  tags: props.Tags ?? [],
 });
 
-const onCreate = async (event: CloudFormationCustomResourceCreateEvent): Promise<HandlerReturn> => {
+export const handleCreate: OnCreateHandler = async (event, context): Promise<ResourceHandlerReturn> => {
   const {
     applicationName,
     deploymentGroupName,
@@ -61,6 +68,7 @@ const onCreate = async (event: CloudFormationCustomResourceCreateEvent): Promise
     terminationWaitTimeInMinutes,
     autoRollbackOnEvents,
     deploymentConfigName,
+    tags,
   } = getProperties(event.ResourceProperties);
 
   await codeDeploy
@@ -102,17 +110,22 @@ const onCreate = async (event: CloudFormationCustomResourceCreateEvent): Promise
         deploymentOption: 'WITH_TRAFFIC_CONTROL',
       },
       deploymentConfigName: deploymentConfigName ?? 'CodeDeployDefault.ECSAllAtOnce',
+      tags,
     })
     .promise();
 
   return {
-    PhysicalResourceId: deploymentGroupName,
+    physicalResourceId: deploymentGroupName,
+    responseData: {
+      Arn: arnForDeploymentGroup(applicationName, deploymentGroupName, context.invokedFunctionArn),
+    },
   };
 };
 
-const onUpdate = async (event: CloudFormationCustomResourceUpdateEvent): Promise<HandlerReturn> => {
+export const handleUpdate: OnUpdateHandler = async (event, context): Promise<ResourceHandlerReturn> => {
   const newProps = getProperties(event.ResourceProperties);
   const oldProps = getProperties(event.OldResourceProperties);
+  const deploymentGroupArn = arnForDeploymentGroup(newProps.applicationName, newProps.deploymentGroupName, context.invokedFunctionArn);
 
   await codeDeploy
     .updateDeploymentGroup({
@@ -152,12 +165,36 @@ const onUpdate = async (event: CloudFormationCustomResourceUpdateEvent): Promise
     })
     .promise();
 
+  const newTagKeys: string[] = newProps.tags.map((t: CodeDeploy.Tag) => t.Key as string);
+  const removableTagKeys: string[] = oldProps.tags.map((t: CodeDeploy.Tag) => t.Key as string).filter((t) => !newTagKeys.includes(t));
+
+  if (removableTagKeys.length > 0) {
+    await codeDeploy
+      .untagResource({
+        ResourceArn: deploymentGroupArn,
+        TagKeys: removableTagKeys,
+      })
+      .promise();
+  }
+
+  if (newProps.tags.length > 0) {
+    await codeDeploy
+      .tagResource({
+        ResourceArn: deploymentGroupArn,
+        Tags: newProps.tags,
+      })
+      .promise();
+  }
+
   return {
-    PhysicalResourceId: newProps.deploymentGroupName,
+    physicalResourceId: newProps.deploymentGroupName,
+    responseData: {
+      Arn: deploymentGroupArn,
+    },
   };
 };
 
-const onDelete = async (event: CloudFormationCustomResourceDeleteEvent): Promise<void> => {
+const handleDelete: OnDeleteHandler = async (event): Promise<void> => {
   const { applicationName, deploymentGroupName } = getProperties(event.ResourceProperties);
 
   await codeDeploy
@@ -168,17 +205,27 @@ const onDelete = async (event: CloudFormationCustomResourceDeleteEvent): Promise
     .promise();
 };
 
-export const handler = async (event: CloudFormationCustomResourceEvent): Promise<HandlerReturn | void> => {
-  const requestType = event.RequestType;
-
-  switch (requestType) {
-    case 'Create':
-      return onCreate(event as CloudFormationCustomResourceCreateEvent);
-    case 'Update':
-      return onUpdate(event as CloudFormationCustomResourceUpdateEvent);
-    case 'Delete':
-      return onDelete(event as CloudFormationCustomResourceDeleteEvent);
-    default:
-      throw new Error(`Invalid request type: ${requestType}`);
+const extractArnParts = (invokedFunctionArn: string): ArnParts => {
+  const matcher = /arn:(?<partition>\w+):lambda:(?<region>[\w-]+):(?<accountId>\d+):.*/.exec(invokedFunctionArn);
+  if (!matcher || !matcher.groups || !matcher.groups.partition || !matcher.groups.region || !matcher.groups.accountId) {
+    throw new Error(`Unable to extract necessary parts from function name. (${invokedFunctionArn}).`);
   }
+  return {
+    awsPartition: matcher.groups.partition,
+    awsRegion: matcher.groups.region,
+    awsAccountId: matcher.groups.accountId,
+  };
 };
+
+const arnForDeploymentGroup = (applicationName: string, deploymentGroupName: string, invokedFunctionArn: string): string => {
+  const arnParts = extractArnParts(invokedFunctionArn);
+  return `arn:${arnParts.awsPartition}:codedeploy:${arnParts.awsRegion}:${arnParts.awsAccountId}:deploymentgroup:${applicationName}/${deploymentGroupName}`;
+};
+
+export const handler = customResourceHelper(
+  (): ResourceHandler => ({
+    onCreate: handleCreate,
+    onUpdate: handleUpdate,
+    onDelete: handleDelete,
+  }),
+);
