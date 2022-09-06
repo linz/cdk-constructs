@@ -7,6 +7,7 @@ export interface IDummyTaskDefinition {
     readonly taskDefinitionArn: string;
     readonly containerName: string;
     readonly containerPort: number;
+    readonly requiresCompatibilities: string[];
 }
 export interface DummyTaskDefinitionProps {
     /**
@@ -29,6 +30,7 @@ export interface DummyTaskDefinitionProps {
      * @default 80
      */
     readonly containerPort?: number;
+    readonly requiresCompatibilities?: string[];
 }
 export declare class DummyTaskDefinition extends Construct implements IDummyTaskDefinition, ITaggable {
     readonly executionRole: IRole;
@@ -37,6 +39,7 @@ export declare class DummyTaskDefinition extends Construct implements IDummyTask
     readonly containerName: string;
     readonly containerPort: number;
     readonly tags: TagManager;
+    readonly requiresCompatibilities: string[];
     constructor(scope: Construct, id: string, props: DummyTaskDefinitionProps);
     /**
      * Adds a policy statement to the task execution IAM role.

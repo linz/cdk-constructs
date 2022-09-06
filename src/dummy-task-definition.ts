@@ -20,6 +20,8 @@ export interface IDummyTaskDefinition {
   readonly containerName: string;
 
   readonly containerPort: number;
+
+  readonly requiresCompatibilities: string[];
 }
 export interface DummyTaskDefinitionProps {
   /**
@@ -45,6 +47,8 @@ export interface DummyTaskDefinitionProps {
    * @default 80
    */
   readonly containerPort?: number;
+
+  readonly requiresCompatibilities?: string[];
 }
 
 export class DummyTaskDefinition extends Construct implements IDummyTaskDefinition, ITaggable {
@@ -60,6 +64,8 @@ export class DummyTaskDefinition extends Construct implements IDummyTaskDefiniti
 
   public readonly tags: TagManager;
 
+  public readonly requiresCompatibilities: string[];
+
   constructor(scope: Construct, id: string, props: DummyTaskDefinitionProps) {
     super(scope, id);
 
@@ -73,12 +79,13 @@ export class DummyTaskDefinition extends Construct implements IDummyTaskDefiniti
     this.family = props.family ?? this.node.addr;
     this.containerName = props.containerName ?? 'sample-website';
     this.containerPort = props.containerPort ?? 80;
+    this.requiresCompatibilities = props.requiresCompatibilities ?? ['FARGATE']
 
     const registerTaskDefinition: AwsSdkCall = {
       service: 'ECS',
       action: 'registerTaskDefinition',
       parameters: {
-        requiresCompatibilities: ['FARGATE'],
+        requiresCompatibilities: this.requiresCompatibilities,
         family: this.family,
         executionRoleArn: this.executionRole.roleArn,
         networkMode: NetworkMode.AWS_VPC,
@@ -138,4 +145,5 @@ export class DummyTaskDefinition extends Construct implements IDummyTaskDefiniti
   public addToExecutionRolePolicy(statement: PolicyStatement): void {
     this.executionRole.addToPrincipalPolicy(statement);
   }
+
 }

@@ -79,7 +79,6 @@ export class EcsService extends Construct implements IConnectable, IEcsService, 
       cluster,
       serviceName,
       launchType = LaunchType.FARGATE,
-      platformVersion = '1.4.0',
       desiredCount = 1,
       prodTargetGroup,
       testTargetGroup,
@@ -124,7 +123,7 @@ export class EcsService extends Construct implements IConnectable, IEcsService, 
         resources: [taskDefinition.executionRole.roleArn],
       }),
     );
-
+    const platformVersion = launchType === LaunchType.FARGATE ? '1.4.0' : undefined
     const service = new CustomResource(this, `${id}-ECSCR`, {
       serviceToken: serviceToken.functionArn,
       resourceType: 'Custom::BlueGreenService',
