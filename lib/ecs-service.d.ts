@@ -9,6 +9,7 @@ export interface IEcsService {
     readonly serviceName: string;
 }
 export interface EcsServiceProps {
+    readonly subnetIds?: string[];
     readonly securityGroups?: SecurityGroup[];
     readonly cluster: ICluster;
     readonly serviceName: string;

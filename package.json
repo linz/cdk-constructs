@@ -1,6 +1,6 @@
 {
   "name": "@linz/cdk-blue-green-container-deployment",
-  "version": "1.60.0",
+  "version": "1.60.0-EC2",
   "description": "Blue green container deployment with CodeDeploy",
   "author": "Linz",
   "license": "MIT",

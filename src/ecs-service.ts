@@ -15,6 +15,7 @@ export interface IEcsService {
 }
 
 export interface EcsServiceProps {
+  readonly subnetIds?: string[];
   readonly securityGroups?: SecurityGroup[];
   readonly cluster: ICluster;
   readonly serviceName: string;
@@ -77,6 +78,7 @@ export class EcsService extends Construct implements IConnectable, IEcsService, 
 
     const {
       cluster,
+      subnetIds,
       serviceName,
       launchType = LaunchType.FARGATE,
       desiredCount = 1,
@@ -135,7 +137,7 @@ export class EcsService extends Construct implements IConnectable, IEcsService, 
         LaunchType: launchType,
         PlatformVersion: platformVersion,
         DesiredCount: desiredCount,
-        Subnets: vpc.isolatedSubnets.map((sn) => sn.subnetId),
+        Subnets: subnetIds ?? vpc.isolatedSubnets.map((sn) => sn.subnetId),
         SecurityGroups: securityGroups.map((sg) => sg.securityGroupId),
         TargetGroupArn: prodTargetGroup.targetGroupArn,
         ContainerPort: containerPort,
