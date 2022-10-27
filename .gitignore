@@ -65,10 +65,6 @@ typings/
 cdk.out
 dist
 cdk.context.json
-.jsii
-*.tsbuildinfo
-tsconfig.json
-tsconfig.eslint.json
 .idea
 
 .npmrc
