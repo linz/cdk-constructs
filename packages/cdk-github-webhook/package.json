@@ -74,7 +74,7 @@
     "@octokit/rest": "^18.5.4",
     "@types/parse-github-url": "^1.0.0",
     "aws-sdk": "^2.974.0",
-    "axios": "^0.21.1",
+    "axios": "^0.32.0",
     "custom-resource-helper": "^1.0.15",
     "jest-cdk-snapshot": "^1.4.2",
     "parse-github-url": "^1.0.2"
